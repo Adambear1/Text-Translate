@@ -1,4 +1,5 @@
 require("dotenv").config()
+const path = require("path")
 const express = require("express")
 const app = express()
 const fs = require("fs")
@@ -30,44 +31,12 @@ const tempStorage = multer.diskStorage({
 });
 const upload = multer({ storage: tempStorage }).single("image")
 
-//DB
-const mongoose = require("mongoose")
-const Schema = mongoose.Schema;
-mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost/duolingodb", { useNewUrlParser: false });
-const pictureSchema = new Schema({
-    image: {
-        type: String,
-        trim: true
-    }
-})
-const Picture = mongoose.model("Picture", pictureSchema)
-const translationSchema = new Schema({
-    native_language: {
-        type: String,
-        trim: true
-    },
-    translate_language: {
-        type: String,
-        trim: true
-    },
-    native_text: {
-        type: String,
-        trim: true
-    },
-    translate_text: {
-        type: String,
-        trim: true
-    }
-})
-const Translation = mongoose.model("Translation", translationSchema)
-
 //Views
-app.set("view engine", "ejs")
 app.set(express.static("pubic"))
 
 //Routes
 app.get('/', (req, res) => {
-    res.render("index")
+    res.sendFile(path.join(__dirname, "./public/index.html"))
 })
 app.post("/uploads", (req, res) => {
     upload(req, res, err => {
@@ -79,6 +48,7 @@ app.post("/uploads", (req, res) => {
                     console.log(progress)
                 })
                 .then(result => {
+                    console.log(result)
                     var options = {
                         method: 'POST',
                         url: 'https://google-translate1.p.rapidapi.com/language/translate/v2',
@@ -91,27 +61,17 @@ app.post("/uploads", (req, res) => {
                         },
                         form: { source: 'ja', q: result.text, target: 'en' }
                     };
-
                     request(options, function (error, response, body) {
                         if (error) throw new Error(error);
                         var _res = JSON.parse(response.body);
-                        //JA => EN translate
+                        // JA => EN translate
                         var text = (_res.data.translations[0].translatedText)
-                        console.log(text)
-                        res.render("index", { translation: JSON.stringify(text) })
-                        // var res = converter.convert(text);
-                        // console.log(res.kanji);
+                        res.send(text)
                     })
                 })
-                .finally(() => worker.terminate());
         })
     })
 })
-app.get("/download", (req, res) => {
-    const file = `${__dirname}/tesseract.js-ocr-result.pdf`
-    res.download(file)
-})
-//Logic
 
 PORT = process.env.PORT || 8080
 
